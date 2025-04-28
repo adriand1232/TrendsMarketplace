@@ -40,29 +40,41 @@ month_order = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'
 st.title("Sales Dashboard")
 heatmap_tab, analysis_tab = st.tabs(["Heatmaps", "Sales Profit Analysis"])
 
-# --- TAB 1: Heatmaps (Quantity & Profit) ---
+# --- TAB 1: Heatmaps (Quantity & Profit) with separate year filters ---
 with heatmap_tab:
     st.header("U.S. Sales Heatmaps")
-    all_hp = st.checkbox("View All Categories", key="all_hp")
+    all_hp = st.checkbox("View All Categories (applies to both)", key="all_hp")
     col1, col2 = st.columns(2)
 
     # Quantity Sold
     with col1:
         st.subheader("Quantity Sold by State")
+        # Year filter specific to quantity
+        years_qty = ['All'] + [str(y) for y in sorted(data['Year'].unique())]
+        sel_years_qty = st.selectbox("Year (Qty)", years_qty, key="year_q")
+        df_qty = data.copy()
+        if sel_years_qty != 'All':
+            df_qty = df_qty[df_qty['Year'] == int(sel_years_qty)]
+
         if all_hp:
-            df_qty = data.groupby('State')['Quantity'].sum().reset_index()
+            df_plot = df_qty.groupby('State')['Quantity'].sum().reset_index()
             title_q = "Quantity Sold (All Categories)"
         else:
-            cat_q = st.selectbox("Category (Qty)", data['Category'].unique(), key="cat_q")
-            sub_q = st.selectbox("Sub-Category (Qty)",
-                                 data[data['Category']==cat_q]['Sub-Category'].unique(), key="sub_q")
-            df_qty = (data[(data['Category']==cat_q)&(data['Sub-Category']==sub_q)]
-                      .groupby('State')['Quantity'].sum().reset_index())
+            cat_q = st.selectbox("Category (Qty)", df_qty['Category'].unique(), key="cat_q")
+            sub_q = st.selectbox(
+                "Sub-Category (Qty)",
+                df_qty[df_qty['Category']==cat_q]['Sub-Category'].unique(),
+                key="sub_q"
+            )
+            df_plot = (
+                df_qty[(df_qty['Category']==cat_q)&(df_qty['Sub-Category']==sub_q)]
+                .groupby('State')['Quantity'].sum().reset_index()
+            )
             title_q = f"Quantity of {sub_q} Sold"
-        df_qty = df_qty[df_qty['State'].isin(state_abbrev)]
-        df_qty['Code'] = df_qty['State'].map(state_abbrev)
+        df_plot = df_plot[df_plot['State'].isin(state_abbrev)]
+        df_plot['Code'] = df_plot['State'].map(state_abbrev)
         fig_q = px.choropleth(
-            df_qty,
+            df_plot,
             locations='Code', locationmode='USA-states',
             color='Quantity', scope='usa',
             color_continuous_scale='YlGnBu',
@@ -73,20 +85,32 @@ with heatmap_tab:
     # Profit by State
     with col2:
         st.subheader("Profit by State")
+        # Year filter specific to profit
+        years_p = ['All'] + [str(y) for y in sorted(data['Year'].unique())]
+        sel_years_p = st.selectbox("Year (Profit)", years_p, key="year_p")
+        df_prof = data.copy()
+        if sel_years_p != 'All':
+            df_prof = df_prof[df_prof['Year'] == int(sel_years_p)]
+
         if all_hp:
-            df_prof = data.groupby('State')['Profit'].sum().reset_index()
+            df_plot = df_prof.groupby('State')['Profit'].sum().reset_index()
             title_p = "Profit (All Categories)"
         else:
-            cat_p = st.selectbox("Category (Profit)", data['Category'].unique(), key="cat_p")
-            sub_p = st.selectbox("Sub-Category (Profit)",
-                                 data[data['Category']==cat_p]['Sub-Category'].unique(), key="sub_p")
-            df_prof = (data[(data['Category']==cat_p)&(data['Sub-Category']==sub_p)]
-                       .groupby('State')['Profit'].sum().reset_index())
+            cat_p = st.selectbox("Category (Profit)", df_prof['Category'].unique(), key="cat_p")
+            sub_p = st.selectbox(
+                "Sub-Category (Profit)",
+                df_prof[df_prof['Category']==cat_p]['Sub-Category'].unique(),
+                key="sub_p"
+            )
+            df_plot = (
+                df_prof[(df_prof['Category']==cat_p)&(df_prof['Sub-Category']==sub_p)]
+                .groupby('State')['Profit'].sum().reset_index()
+            )
             title_p = f"Profit from {sub_p}"
-        df_prof = df_prof[df_prof['State'].isin(state_abbrev)]
-        df_prof['Code'] = df_prof['State'].map(state_abbrev)
+        df_plot = df_plot[df_plot['State'].isin(state_abbrev)]
+        df_plot['Code'] = df_plot['State'].map(state_abbrev)
         fig_p = px.choropleth(
-            df_prof,
+            df_plot,
             locations='Code', locationmode='USA-states',
             color='Profit', scope='usa',
             color_continuous_scale='YlOrRd',
@@ -94,10 +118,9 @@ with heatmap_tab:
         )
         st.plotly_chart(fig_p, use_container_width=True)
 
-# --- TAB 2: Sales Profit Analysis without sidebar ---
+# --- TAB 2: Sales Profit Analysis ---
 with analysis_tab:
     st.header("Sales Profit Analysis")
-    # Layout: filters on left, charts on right
     filter_col, chart_col = st.columns([1, 3])
 
     # Filters in left column
@@ -110,10 +133,10 @@ with analysis_tab:
         sel_subs = st.multiselect("Sub-Category", ['All']+subs, default=['All'], key='f_subs')
         if 'All' not in sel_subs:
             df_f = df_f[df_f['Sub-Category'].isin(sel_subs)]
-        yrs = sorted(df_f['Year'].unique())
-        sel_yrs = st.multiselect("Year(s)", ['All']+[str(y) for y in yrs], default=['All'], key='f_years')
-        if 'All' not in sel_yrs:
-            df_f = df_f[df_f['Year'].isin([int(y) for y in sel_yrs])]
+        yrs2 = sorted(df_f['Year'].unique())
+        sel_yrs2 = st.multiselect("Year(s)", ['All']+[str(y) for y in yrs2], default=['All'], key='f_years')
+        if 'All' not in sel_yrs2:
+            df_f = df_f[df_f['Year'].isin([int(y) for y in sel_yrs2])]
         line_style = st.selectbox("Line Style", ['Linear','Smooth (Spline)'], key='f_style')
         markers = st.checkbox("Show Markers", True, key='f_markers')
 
@@ -122,7 +145,6 @@ with analysis_tab:
         if df_f.empty:
             st.warning("No data for selected filters")
         else:
-            # Annual Profit Bar Chart
             st.subheader("Annual Profit by Category")
             yr_bar = df_f.groupby(['Year','Category'])['Profit'].sum().reset_index()
             yr_bar['Year'] = yr_bar['Year'].astype(str)
@@ -133,7 +155,6 @@ with analysis_tab:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            # Monthly Profit Line Chart
             st.subheader("Monthly Profit Trend")
             grp = 'Category' if 'All' in sel_subs else 'Sub-Category'
             ln_df = df_f.groupby(['Month',grp])['Profit'].sum().reset_index()
@@ -149,7 +170,6 @@ with analysis_tab:
             )
             st.plotly_chart(fig_line, use_container_width=True)
 
-            # Data Table & Download
             st.subheader("Profit Data Table")
             tbl = df_f.groupby(['Year','Month','Category','Sub-Category'])['Profit'].sum().reset_index()
             tbl['Month'] = pd.Categorical(tbl['Month'], categories=month_order, ordered=True)
